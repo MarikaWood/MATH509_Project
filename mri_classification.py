@@ -1,6 +1,6 @@
-##########################################
+
 # STEP 1: Install & Configure Kaggle CLI
-##########################################
+
 !pip install -q kaggle
 
 import os
@@ -18,9 +18,9 @@ uploaded = files.upload()  # select kaggle.json when prompted
 !cp /content/kaggle.json ~/.kaggle/
 !chmod 600 ~/.kaggle/kaggle.json
 
-########################################
+
 # STEP 2: Download & Unzip the Dataset
-########################################
+
 # Downloads the Images Oasis dataset from Kaggle
 !kaggle datasets download ninadaithal/imagesoasis -p /content --force
 
@@ -37,9 +37,9 @@ uploaded = files.upload()  # select kaggle.json when prompted
 # Each folder has a set of slices for various patients, e.g.:
 #   OAS1_0285_MR1_mpr-1_128.jpg (0285 = patient, MR1 = 1st MRI, 128 = MRI slice)
 
-######################################################
+
 # STEP 3: Filter to Use Only 150th Slice Per Patient
-######################################################
+
 import shutil
 import re
 
@@ -73,9 +73,7 @@ for cls in classes:
 
 print("Data filtered to keep only 150th slice for each patient.")
 
-#################################################
 # STEP 4: Split the Data into Train/Test (70:30)
-#################################################
 import random
 
 base_dir = "/content/OASIS_split" # Root directory for split dataset
@@ -116,9 +114,7 @@ print("Data split complete.")
 print("Train folder:", train_dir)
 print("Test folder:", test_dir)
 
-#####################################
 # STEP 5: Keras ImageDataGenerators
-#####################################
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
@@ -154,9 +150,8 @@ test_generator = test_datagen.flow_from_directory(
     shuffle=False  # Keep image ordering consistent
 )
 
-##############################################
+
 # STEP 6: Use MobileNetV2 (Transfer Learning)
-##############################################
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, models
 from tensorflow.keras.callbacks import EarlyStopping
@@ -180,9 +175,7 @@ model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accur
 # Summary of the model
 model.summary()
 
-##############################################
 # STEP 7: Train the Model with Early Stopping
-##############################################
 # Early stopping to stop training if validation loss doesn't improve
 early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
 
@@ -194,9 +187,7 @@ history = model.fit(
     callbacks=[early_stopping]
 )
 
-########################################
 # STEP 8: Evaluate & Visualize Results
-########################################
 import matplotlib.pyplot as plt
 
 acc = history.history['accuracy']
