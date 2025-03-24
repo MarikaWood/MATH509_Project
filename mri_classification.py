@@ -4,6 +4,7 @@
 !pip install -q kaggle
 
 import os
+from google.colab import files
 
 # Tell Kaggle CLI to look for the API key in /content
 os.environ["KAGGLE_CONFIG_DIR"] = "/content"
