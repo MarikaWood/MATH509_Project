@@ -17,7 +17,7 @@ uploaded = files.upload()  # select kaggle.json when prompted
 
 # Move kaggle.json into ~/.kaggle folder
 !cp /content/kaggle.json ~/.kaggle/
-!chmod 600 ~/.kaggle/kaggle.json
+!chmod 600 /content/kaggle.json
 
 
 # STEP 2: Download & Unzip the Dataset
@@ -39,40 +39,74 @@ uploaded = files.upload()  # select kaggle.json when prompted
 #   OAS1_0285_MR1_mpr-1_128.jpg (0285 = patient, MR1 = 1st MRI, 128 = MRI slice)
 
 
-# STEP 3: Filter to Use Only 150th Slice Per Patient
+# STEP 3: Filter to Use Slices 119/120/121 Per Patient
 
 import shutil
 import re
+import os
+import random
 
 # Define root directory where dataset is stored
 data_root = "/content/Data"
 
 # Define the directory for filtered images
-filtered_root = "/content/Data_150th_Slice"
+filtered_root = "/content/Data_Selected_Slices"
+if os.path.exists(filtered_root):
+    shutil.rmtree(filtered_root)  # Clear existing filtered data
 os.makedirs(filtered_root, exist_ok=True)
 
-# Classes (subfolders)
-classes = ["Mild Dementia", "Moderate Dementia", "Non Demented", "Very mild Dementia"]
+# Define dementia classes (excluding Moderate Dementia)
+classes = ["Mild Dementia", "Non Demented", "Very mild Dementia"]
 
-# Regex to extract the slice number from filenames
-slice_pattern = re.compile(r".*_(\d+)\.jpg$")
+# Regex to extract patient ID and slice index from filenames
+pattern = re.compile(r"(OAS1_\d+)_MR\d+_mpr-\d+_(\d+)\.jpg")
+
+# Dictionary to track patients and slices
+patient_slices = {cls: {} for cls in classes}
 
 for cls in classes:
     class_in_path = os.path.join(data_root, cls)
+
+    for fname in os.listdir(class_in_path):
+        match = pattern.match(fname)
+        if match:
+            patient_id = match.group(1)   # Extract patient ID
+            slice_idx = int(match.group(2))    # Extract slice number
+
+            # Only keep slices 119, 120, 121
+            if slice_idx in [119, 120, 121]:
+                if patient_id not in patient_slices[cls]:
+                    patient_slices[cls][patient_id] = []
+                patient_slices[cls][patient_id].append(fname)
+
+# Perform random sampling of 6 images per patient and copy to filtered directory
+for cls, patients in patient_slices.items():
     class_out_path = os.path.join(filtered_root, cls)
     os.makedirs(class_out_path, exist_ok=True)
 
-    for fname in os.listdir(class_in_path):
-        match = slice_pattern.match(fname)
-        if match:
-            slice_idx = int(match.group(1))
-            # Only keep the 150th slice of each patient
-            if slice_idx == 150:
-                src = os.path.join(class_in_path, fname)
-                dst = os.path.join(class_out_path, fname)
-                shutil.copy2(src, dst)
+    for patient_id, images in patients.items():
+        # Select exactly 6 images per patient
+        selected_images = random.sample(images, min(6, len(images)))
 
-print("Data filtered to keep only 150th slice for each patient.")
+        # Copy only the selected images
+        for img in selected_images:
+            src = os.path.join(data_root, cls, img)
+            dst = os.path.join(class_out_path, img)
+            shutil.copy2(src, dst)
+
+print("\nRandom sampling complete. 6 images per patient selected.\n")
+
+# Count unique patients per class (use to check expected number of image per class)
+print("\nUnique Patients per Class:")
+for cls, patients in patient_slices.items():
+    print(f"{cls}: {len(patients)} unique patients")
+
+# Count images per class 
+print("\nImage Count per Class After Selection:")
+for cls in classes:
+    class_path = os.path.join(filtered_root, cls)
+    num_images = len(os.listdir(class_path))
+    print(f"{cls}: {num_images} images")
 
 # STEP 4: Split the Data into Train/Test (70:30)
 import random
