@@ -187,69 +187,98 @@ test_generator = test_datagen.flow_from_directory(
 
 
 # STEP 6: Use MobileNetV2 (Transfer Learning)
+
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, models
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import Adam
 
 # Load the MobileNetV2 model, pre-trained on ImageNet, excluding the top layers
-base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(64, 64, 3))
-base_model.trainable = False  # Freeze base model layers
+base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+base_model.trainable = False  # Freeze base model layers initially
+
+# Unfreeze last 20 layers for fine-tuning
+for layer in base_model.layers[-20:]:
+    layer.trainable = True
 
 # Build the model
 model = models.Sequential([
     base_model,
     layers.GlobalAveragePooling2D(),
-    layers.Dense(64, activation='relu'),
-    layers.Dropout(0.3), # Dropout to prevent overfitting
-    layers.Dense(4, activation='softmax')  # 4 classes
+    layers.BatchNormalization(),           # Helps with training stability
+    layers.Dense(256, activation='relu'),  # Number of neurons
+    layers.Dropout(0.3),
+    layers.Dense(3, activation='softmax')  # 3-class classification
 ])
-
 # Compile the model
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer=Adam(learning_rate=1e-4),
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
 
 # Summary of the model
 model.summary()
 
-# STEP 7: Train the Model with Early Stopping
-# Early stopping to stop training if validation loss doesn't improve
-early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+# STEP 7: Train the Model with Early Stopping & Class Weights
 
-# Train the model with small number of epochs to start 
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+import numpy as np
+
+# Early stopping (stop training if validation loss doesn't improve for 5 epochs)
+early_stopping = EarlyStopping(
+    monitor='val_loss', patience=5, restore_best_weights=True)
+
+# Reduce learning rate if validation loss plateaus
+reduce_lr = ReduceLROnPlateau(
+    monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6
+)
+
+# Get class distributions in the training set
+class_counts = {cls: len(os.listdir(os.path.join(train_dir, cls))) for cls in os.listdir(train_dir)}
+total_samples = sum(class_counts.values())
+
+# Train the model
 history = model.fit(
     train_generator,
-    epochs=3,  # 3 epochs selected
+    epochs=20,  # Stops early if needed
     validation_data=test_generator,
-    callbacks=[early_stopping]
+    class_weight=class_weight_dict,  # Apply class weights
+    callbacks=[early_stopping, reduce_lr]
 )
 
 # STEP 8: Evaluate & Visualize Results
+
 import matplotlib.pyplot as plt
 
-acc = history.history['accuracy']
-val_acc = history.history['val_accuracy']
-loss = history.history['loss']
-val_loss = history.history['val_loss']
-epochs_range = range(3)  # 3 epochs
+# Extract training history values
+acc = history.history['accuracy']         # Training accuracy per epoch
+val_acc = history.history['val_accuracy'] # Validation accuracy per epoch
+loss = history.history['loss']            # Training loss per epoch
+val_loss = history.history['val_loss']    # Validation loss per epoch
+epochs_range = range(len(acc))            # Number of training epochs
 
-# Plot Accuracy
-plt.figure()
+# Plot Accuracy (shows training/validation accuracy over epochs)
+plt.figure(figsize=(8, 5))
 plt.plot(epochs_range, acc, label='Train Accuracy')
 plt.plot(epochs_range, val_acc, label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
 plt.title('Training & Validation Accuracy')
 plt.legend()
+plt.grid(True)
 plt.show()
 
-# Plot Loss
-plt.figure()
+# Plot Loss (shows training/validation loss over epochs)
+plt.figure(figsize=(8, 5))
 plt.plot(epochs_range, loss, label='Train Loss')
 plt.plot(epochs_range, val_loss, label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
 plt.title('Training & Validation Loss')
 plt.legend()
+plt.grid(True)
 plt.show()
 
 # Final Test Evaluation
 test_loss, test_accuracy = model.evaluate(test_generator, verbose=1)
 print(f"Test Accuracy: {test_accuracy:.4f}")
 print(f"Test Loss:     {test_loss:.4f}")
-
-print("Class Indices:", train_generator.class_indices)
+print("Class Indices:", train_generator.class_indices) # Display class indicies
