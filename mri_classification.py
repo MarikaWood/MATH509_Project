@@ -108,73 +108,128 @@ for cls in classes:
     num_images = len(os.listdir(class_path))
     print(f"{cls}: {num_images} images")
 
+
 # STEP 4: Split the Data into Train/Test (70:30)
 import random
 
-base_dir = "/content/OASIS_split" # Root directory for split dataset
-train_dir = os.path.join(base_dir, "train") # Path for training data
-test_dir  = os.path.join(base_dir, "test") # Path for testing data
+# Define directories
+base_dir = "/content/OASIS_split"
+train_dir = os.path.join(base_dir, "train")
+test_dir  = os.path.join(base_dir, "test")
 
 os.makedirs(train_dir, exist_ok=True)
-os.makedirs(test_dir, exist_ok=True) # Makes sure train/test directories exist
+os.makedirs(test_dir, exist_ok=True)
 
-# For each class, split the data into training (70%) and testing (30%) sets
+# Remove existing directories to prevent duplicate images
+if os.path.exists(train_dir):
+    shutil.rmtree(train_dir)
+if os.path.exists(test_dir):
+    shutil.rmtree(test_dir)
+
+# First extract patient IDs per class
+classes = ["Mild Dementia", "Non Demented", "Very mild Dementia"]
+patient_dict = {cls: {} for cls in classes} # Store patients for each class
+
 for cls in classes:
     cls_folder = os.path.join(filtered_root, cls)
     all_images = os.listdir(cls_folder)
-    random.shuffle(all_images)
 
-    # 70:30 split
-    split_idx = int(0.7 * len(all_images))
-    train_imgs = all_images[:split_idx] # First 70% training
-    test_imgs  = all_images[split_idx:] # Last 30% testing
+    for fname in all_images:
+        match = pattern.match(fname)
+        if match:
+            patient_id = match.group(1)  # Extract patient ID
+            if patient_id not in patient_dict[cls]:
+                patient_dict[cls][patient_id] = []
+            patient_dict[cls][patient_id].append(fname)
 
-    # Make subfolders for each class in train/test directories
+# Split patients into train (70%) and test (30%) per class
+for cls, patient_images in patient_dict.items():
+    patient_ids = list(patient_images.keys())
+    random.shuffle(patient_ids)
+
+    split_idx = int(0.7 * len(patient_ids))
+    train_patients = patient_ids[:split_idx]
+    test_patients  = patient_ids[split_idx:]
+
+    # Make subfolders
     os.makedirs(os.path.join(train_dir, cls), exist_ok=True)
     os.makedirs(os.path.join(test_dir, cls), exist_ok=True)
 
-    # Copy the training images
-    for img_name in train_imgs:
-        src = os.path.join(cls_folder, img_name)
-        dst = os.path.join(train_dir, cls, img_name)
+    # Copy the files to train set
+    for patient_id in train_patients:
+      for fname in patient_images[patient_id]:
+        src = os.path.join(filtered_root, cls, fname)
+        dst = os.path.join(train_dir, cls, fname)
         shutil.copy2(src, dst)
 
-    # Copy the testing images
-    for img_name in test_imgs:
-        src = os.path.join(cls_folder, img_name)
-        dst = os.path.join(test_dir, cls, img_name)
+    # Copy the files to test set
+    for patient_id in test_patients:
+      for fname in patient_images[patient_id]:
+        src = os.path.join(filtered_root, cls, fname)
+        dst = os.path.join(test_dir, cls, fname)
         shutil.copy2(src, dst)
 
-print("Data split complete.")
+print("Data split complete.") # Patients are unique in train and test sets
 print("Train folder:", train_dir)
 print("Test folder:", test_dir)
 
-# STEP 5: Keras ImageDataGenerators
+# Count images per class in test and train sets
+for folder in [train_dir, test_dir]:
+    print(f"\nChecking: {folder}")
+    for cls in os.listdir(folder):
+        class_path = os.path.join(folder, cls)
+        num_images = len(os.listdir(class_path))
+        print(f"  {cls}: {num_images} images")
+
+# Print unique patient count per class in train and test sets
+print("\n===== Unique Patients per Class in Train/Test =====")
+for cls in classes:
+    total_patients = len(patient_dict[cls])  # Correct total count per class
+    train_patients = int(0.7 * total_patients)  # 70% of patients
+    test_patients = total_patients - train_patients  # Remaining 30%
+
+    print(f"{cls}: {total_patients} total patients")
+    print(f"  Train: {train_patients} patients")
+    print(f"  Test: {test_patients} patients")
+
+# STEP 5: Keras ImageDataGenerators with Class Balancing
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.utils.class_weight import compute_class_weight
 
-IMG_SIZE = (64, 64) # Reduced image size for faster training
-BATCH_SIZE = 32 # Number of images processed per training step
+# Define image and batch size
+IMG_SIZE = (224, 224)
+BATCH_SIZE = 32
 
-# Training data generator with augmentations
-train_datagen = ImageDataGenerator(
-    rescale=1.0/255,
-    rotation_range=20,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
-    zoom_range=0.2,
-    horizontal_flip=True,
-    fill_mode='nearest'
+# Training generator with augmentations
+base_augmentation = dict(
+    rescale=1.0/255,        # Pixel value normalization
+    rotation_range=20,      # Randomly rotate by 20 deg
+    width_shift_range=0.1,  # Shift width up to 10%
+    height_shift_range=0.1, # Shift height up to 10%
+    zoom_range=0.2,         # Random zoom in/out by up to 20%
+    horizontal_flip=True,   # Adds horizontally flipped versions of images
+    fill_mode='nearest'     # Fill gaps w/ nearest pixel value
 )
 
-# Testing data generator (just rescale, no augmentation)
-test_datagen = ImageDataGenerator(rescale=1.0/255)
+# Augmentation for balancing classes
+mild_verymild_aug = dict(base_augmentation, brightness_range=[0.8, 1.2], shear_range=10)
+nondemented_aug = dict(base_augmentation)  # Keep as default
 
-train_generator = train_datagen.flow_from_directory(
-    train_dir, # Load images from training directory
+# Create different generators
+train_datagen_verymild = ImageDataGenerator(**mild_verymild_aug)
+train_datagen_mild = ImageDataGenerator(**mild_verymild_aug)
+train_datagen_nondemented = ImageDataGenerator(**nondemented_aug)
+test_datagen = ImageDataGenerator(rescale=1.0/255) # Test generator (only rescale, no aug)
+
+# Create generators for each class
+train_generator = ImageDataGenerator(**base_augmentation).flow_from_directory(
+    train_dir,
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
-    class_mode='categorical' # Multiclass classification
+    class_mode='categorical',
+    shuffle=True  # Make sure training data is shuffled
 )
 
 test_generator = test_datagen.flow_from_directory(
@@ -182,8 +237,19 @@ test_generator = test_datagen.flow_from_directory(
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='categorical',
-    shuffle=False  # Keep image ordering consistent
+    shuffle=False  # Keep order the same for consistent results
 )
+
+# Determine class weights
+labels = train_generator.classes  # Integer labels
+class_names = list(train_generator.class_indices.keys())  # Extract labels
+class_weights = compute_class_weight("balanced", classes=np.unique(labels), y=labels)
+class_weight_dict = {i: weight for i, weight in enumerate(class_weights)}
+
+print("Class Weights:", class_weight_dict)
+print("Class Indices:", train_generator.class_indices)
+
+
 
 
 # STEP 6: Use MobileNetV2 (Transfer Learning)
