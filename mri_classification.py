@@ -1,4 +1,3 @@
-
 # STEP 1: Install & Configure Kaggle CLI
 
 !pip install -q kaggle
@@ -20,13 +19,14 @@ uploaded = files.upload()  # select kaggle.json when prompted
 !chmod 600 /content/kaggle.json
 
 
+
 # STEP 2: Download & Unzip the Dataset
 
 # Downloads the Images Oasis dataset from Kaggle
 !kaggle datasets download ninadaithal/imagesoasis -p /content --force
 
 # Unzip into /content/Data
-!unzip -q /content/imagesoasis.zip -d /content
+!unzip -o /content/imagesoasis.zip -d /content
 
 # Expected structure:
 # /content/Data/
@@ -37,6 +37,7 @@ uploaded = files.upload()  # select kaggle.json when prompted
 
 # Each folder has a set of slices for various patients, e.g.:
 #   OAS1_0285_MR1_mpr-1_128.jpg (0285 = patient, MR1 = 1st MRI, 128 = MRI slice)
+
 
 
 # STEP 3: Filter to Use Slices 119/120/121 Per Patient
@@ -192,6 +193,7 @@ for cls in classes:
     print(f"  Train: {train_patients} patients")
     print(f"  Test: {test_patients} patients")
 
+
 # STEP 5: Keras ImageDataGenerators with Class Balancing
 import numpy as np
 import tensorflow as tf
@@ -251,7 +253,6 @@ print("Class Indices:", train_generator.class_indices)
 
 
 
-
 # STEP 6: Use MobileNetV2 (Transfer Learning)
 
 from tensorflow.keras.applications import MobileNetV2
@@ -283,6 +284,8 @@ model.compile(optimizer=Adam(learning_rate=1e-4),
 # Summary of the model
 model.summary()
 
+
+
 # STEP 7: Train the Model with Early Stopping & Class Weights
 
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
@@ -309,6 +312,8 @@ history = model.fit(
     class_weight=class_weight_dict,  # Apply class weights
     callbacks=[early_stopping, reduce_lr]
 )
+
+
 
 # STEP 8: Evaluate & Visualize Results
 
