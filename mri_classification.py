@@ -263,8 +263,8 @@ from tensorflow.keras.optimizers import Adam
 base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 base_model.trainable = False  # Freeze base model layers initially
 
-# Unfreeze last 20 layers for fine-tuning
-for layer in base_model.layers[-20:]:
+# Unfreeze last 3 layers for fine-tuning without overfitting
+for layer in base_model.layers[-3:]:
     layer.trainable = True
 
 # Build the model
