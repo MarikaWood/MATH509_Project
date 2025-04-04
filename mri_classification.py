@@ -272,12 +272,14 @@ for layer in base_model.layers[-3:]:
 # Build the model
 model = models.Sequential([
     base_model,
-    layers.GlobalAveragePooling2D(),
+    layers.Conv2D(64, (3,3), activation='relu', kernel_regularizer=l2(0.01)),
     layers.BatchNormalization(),           # Helps with training stability
+    layers.GlobalAveragePooling2D(),
     layers.Dense(256, activation='relu'),  # Number of neurons
-    layers.Dropout(0.3),
+    layers.Dropout(0.6),
     layers.Dense(3, activation='softmax')  # 3-class classification
 ])
+
 # Compile the model
 model.compile(optimizer=Adam(learning_rate=1e-4),
               loss='categorical_crossentropy',
