@@ -206,13 +206,15 @@ BATCH_SIZE = 32
 
 # Training generator with augmentations
 base_augmentation = dict(
-    rescale=1.0/255,        # Pixel value normalization
-    rotation_range=20,      # Randomly rotate by 20 deg
-    width_shift_range=0.1,  # Shift width up to 10%
-    height_shift_range=0.1, # Shift height up to 10%
-    zoom_range=0.2,         # Random zoom in/out by up to 20%
-    horizontal_flip=True,   # Adds horizontally flipped versions of images
-    fill_mode='nearest'     # Fill gaps w/ nearest pixel value
+    rescale=1.0/255,             # Pixel value normalization
+    rotation_range=30,           # Randomly rotate by 30 deg
+    width_shift_range=0.2,       # Shift width up to 20%
+    height_shift_range=0.2,      # Shift height up to 20%
+    zoom_range=0.3,              # Random zoom in/out by up to 30%
+    horizontal_flip=True,        # Adds horizontally flipped versions of images
+    brightness_range=[0.6, 1.4], # Adds variable brightness
+    shear_range=15,              # Randomly slants the image up to 15 deg
+    fill_mode='nearest'          # Fill gaps w/ nearest pixel value
 )
 
 # Augmentation for balancing classes
