@@ -1,18 +1,17 @@
-# STEP 1: Install & Configure Kaggle CLI
-
-!pip install -q kaggle
-
+## STEP 1: Install & Configure Kaggle CLI
 import os
 from google.colab import files
+
+!pip install -q kaggle
 
 # Tell Kaggle CLI to look for the API key in /content
 os.environ["KAGGLE_CONFIG_DIR"] = "/content"
 
-# Create a ~/.kaggle folder
-!mkdir -p ~/.kaggle
-
 # Manually upload kaggle.json file
 uploaded = files.upload()  # select kaggle.json when prompted
+
+# Create a ~/.kaggle folder
+!mkdir -p ~/.kaggle
 
 # Move kaggle.json into ~/.kaggle folder
 !cp /content/kaggle.json ~/.kaggle/
@@ -20,13 +19,16 @@ uploaded = files.upload()  # select kaggle.json when prompted
 
 
 
-# STEP 2: Download & Unzip the Dataset
+## STEP 2: Download & Unzip the Dataset
 
-# Downloads the Images Oasis dataset from Kaggle
+# Download the Images Oasis dataset from Kaggle
 !kaggle datasets download ninadaithal/imagesoasis -p /content --force
 
 # Unzip into /content/Data
 !unzip -o /content/imagesoasis.zip -d /content
+
+# Check extracted folder name
+print("Extracted files:", os.listdir("/content/Data"))
 
 # Expected structure:
 # /content/Data/
@@ -40,12 +42,12 @@ uploaded = files.upload()  # select kaggle.json when prompted
 
 
 
-# STEP 3: Filter to Use Slices 119/120/121 Per Patient
-
+## STEP 3: Filter to Use Slices 119/120/121 Per Patient
 import shutil
 import re
 import os
 import random
+import numpy as np
 
 # Define root directory where dataset is stored
 data_root = "/content/Data"
@@ -86,7 +88,8 @@ for cls, patients in patient_slices.items():
     os.makedirs(class_out_path, exist_ok=True)
 
     for patient_id, images in patients.items():
-        # Select exactly 6 images per patient
+        # Select 6 images per patient
+        np.random.seed(88) # Set a random seed for reproducibility
         selected_images = random.sample(images, min(6, len(images)))
 
         # Copy only the selected images
@@ -110,7 +113,8 @@ for cls in classes:
     print(f"{cls}: {num_images} images")
 
 
-# STEP 4: Split the Data into Train/Test (70:30)
+
+## STEP 4: Split the Data into Train/Test (70:30)
 import random
 
 # Define directories
@@ -121,7 +125,7 @@ test_dir  = os.path.join(base_dir, "test")
 os.makedirs(train_dir, exist_ok=True)
 os.makedirs(test_dir, exist_ok=True)
 
-# Remove existing directories to prevent duplicate images
+# Remove existing directories to prevent duplicate images when rerunning code
 if os.path.exists(train_dir):
     shutil.rmtree(train_dir)
 if os.path.exists(test_dir):
@@ -194,7 +198,8 @@ for cls in classes:
     print(f"  Test: {test_patients} patients")
 
 
-# STEP 5: Keras ImageDataGenerators with Class Balancing
+
+## STEP 5: Keras ImageDataGenerators with Class Balancing
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -217,18 +222,11 @@ base_augmentation = dict(
     fill_mode='nearest'          # Fill gaps w/ nearest pixel value
 )
 
-# Augmentation for balancing classes
-mild_verymild_aug = dict(base_augmentation, brightness_range=[0.8, 1.2], shear_range=10)
-nondemented_aug = dict(base_augmentation)  # Keep as default
-
-# Create different generators
-train_datagen_verymild = ImageDataGenerator(**mild_verymild_aug)
-train_datagen_mild = ImageDataGenerator(**mild_verymild_aug)
-train_datagen_nondemented = ImageDataGenerator(**nondemented_aug)
+# Create generators for training and testing
+train_datagen = ImageDataGenerator(**base_augmentation)
 test_datagen = ImageDataGenerator(rescale=1.0/255) # Test generator (only rescale, no aug)
 
-# Create generators for each class
-train_generator = ImageDataGenerator(**base_augmentation).flow_from_directory(
+train_generator = train_datagen.flow_from_directory(
     train_dir,
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
@@ -255,10 +253,11 @@ print("Class Indices:", train_generator.class_indices)
 
 
 
-# STEP 6: Use MobileNetV2 (Transfer Learning)
-
+## STEP 6: Use MobileNetV2 (Transfer Learning)
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras import layers, models
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import Adam
 
 # Load the MobileNetV2 model, pre-trained on ImageNet, excluding the top layers
@@ -275,7 +274,7 @@ model = models.Sequential([
     layers.Conv2D(64, (3,3), activation='relu', kernel_regularizer=l2(0.01)),
     layers.BatchNormalization(),           # Helps with training stability
     layers.GlobalAveragePooling2D(),
-    layers.Dense(256, activation='relu'),  # Number of neurons
+    layers.Dense(256, activation='relu'),  # 256 neurons
     layers.Dropout(0.6),
     layers.Dense(3, activation='softmax')  # 3-class classification
 ])
@@ -285,13 +284,12 @@ model.compile(optimizer=Adam(learning_rate=1e-4),
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
-# Summary of the model
+# Model summary
 model.summary()
 
 
 
-# STEP 7: Train the Model with Early Stopping & Class Weights
-
+## STEP 7: Train the Model with Early Stopping & Class Weights
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 import numpy as np
 
@@ -319,8 +317,7 @@ history = model.fit(
 
 
 
-# STEP 8: Evaluate & Visualize Results
-
+## STEP 8: Evaluate & Visualize Results
 import matplotlib.pyplot as plt
 
 # Extract training history values
@@ -357,3 +354,23 @@ test_loss, test_accuracy = model.evaluate(test_generator, verbose=1)
 print(f"Test Accuracy: {test_accuracy:.4f}")
 print(f"Test Loss:     {test_loss:.4f}")
 print("Class Indices:", train_generator.class_indices) # Display class indicies
+
+# Compute metrics for model analysis
+import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
+
+# Extract true labels from test data
+y_true = test_generator.classes  # true labels
+
+# Predict on test data
+y_pred_prob = model.predict(test_generator)  # Model outputs probabilities
+y_pred = np.argmax(y_pred_prob, axis=1)  # Convert to class labels
+
+# Extract class names
+class_names = list(train_generator.class_indices.keys())
+print("Class Names:", class_names)
+
+# Compute confusion matrix and classification metrics
+conf_matrix = confusion_matrix(y_true, y_pred)
+print("Confusion Matrix:\n", conf_matrix)
+print("Classification Metrics:\n", classification_report(y_true, y_pred, target_names=class_names))
