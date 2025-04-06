@@ -148,6 +148,7 @@ for cls in classes:
             patient_dict[cls][patient_id].append(fname)
 
 # Split patients into train (70%) and test (30%) per class
+random.seed(88) # Set seed for reproducible results
 for cls, patient_images in patient_dict.items():
     patient_ids = list(patient_images.keys())
     random.shuffle(patient_ids)
@@ -301,10 +302,6 @@ early_stopping = EarlyStopping(
 reduce_lr = ReduceLROnPlateau(
     monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6
 )
-
-# Get class distributions in the training set
-class_counts = {cls: len(os.listdir(os.path.join(train_dir, cls))) for cls in os.listdir(train_dir)}
-total_samples = sum(class_counts.values())
 
 # Train the model
 history = model.fit(
