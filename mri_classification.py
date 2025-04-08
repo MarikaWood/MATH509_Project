@@ -19,7 +19,7 @@ uploaded = files.upload()  # select kaggle.json when prompted
 
 
 
-## STEP 2: Download & Unzip the Dataset
+## STEP 2: Download & Unzip the Dataset + Generate Sample Images
 
 # Download the Images Oasis dataset from Kaggle
 !kaggle datasets download ninadaithal/imagesoasis -p /content --force
@@ -40,7 +40,30 @@ print("Extracted files:", os.listdir("/content/Data"))
 # Each folder has a set of slices for various patients, e.g.:
 #   OAS1_0285_MR1_mpr-1_128.jpg (0285 = patient, MR1 = 1st MRI, 128 = MRI slice)
 
+# Generate a random sample of 50 images from dataset
+import random
+from glob import glob
+import matplotlib.pyplot as plt
+import cv2
+import numpy as np
 
+# Define path to all images
+all_images = glob(os.path.join("/content/Data", "*", "*.jpg")) + glob(os.path.join("/content/Data", "*", "*.jpg"))
+
+# Sample 50 random images
+np.random.seed(88)
+sampled_images = random.sample(all_images, 50)
+
+# Display random images
+plt.figure(figsize=(15, 7))
+for i, path in enumerate(sampled_images):
+    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (100, 100))
+    plt.subplot(5, 10, i + 1)
+    plt.imshow(img, cmap='gray')
+    plt.axis('off')
+plt.tight_layout()
+plt.show()
 
 ## STEP 3: Filter to Use Slices 119/120/121 Per Patient
 import shutil
