@@ -62,6 +62,7 @@ for i, path in enumerate(sampled_images):
     plt.subplot(5, 10, i + 1)
     plt.imshow(img, cmap='gray')
     plt.axis('off')
+plt.suptitle("Random Sample of 50 Images from Dataset", fontsize=16)
 plt.tight_layout()
 plt.show()
 
@@ -201,6 +202,31 @@ for cls, patient_images in patient_dict.items():
 print("Data split complete.") # Patients are unique in train and test sets
 print("Train folder:", train_dir)
 print("Test folder:", test_dir)
+
+# Generate a random sample of 50 images from training dataset
+import random
+from glob import glob
+import matplotlib.pyplot as plt
+import cv2
+
+# Define path to all images in training folder
+train_images = glob(os.path.join(train_dir, "*", "*.jpg"))
+
+# Sample 50 random training images
+random.seed(88)
+sampled_train_images = random.sample(train_images, 50)
+
+# Display random images
+plt.figure(figsize=(15, 7))
+for i, path in enumerate(sampled_train_images):
+    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (100, 100))
+    plt.subplot(5, 10, i + 1)
+    plt.imshow(img, cmap='gray')
+    plt.axis('off')
+plt.suptitle("Random Sample of 50 Images from Training Set", fontsize=16)
+plt.tight_layout()
+plt.show()
 
 # Count images per class in test and train sets
 for folder in [train_dir, test_dir]:
