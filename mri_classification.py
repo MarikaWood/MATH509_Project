@@ -420,3 +420,21 @@ print("Class Names:", class_names)
 conf_matrix = confusion_matrix(y_true, y_pred)
 print("Confusion Matrix:\n", conf_matrix)
 print("Classification Metrics:\n", classification_report(y_true, y_pred, target_names=class_names))
+
+
+#Code for confusion matrix figure: 
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+
+# Your confusion matrix values
+cm = [[6, 28, 8],
+      [12, 455, 13],
+      [10, 72, 26]]
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=classes, yticklabels=classes)
+plt.title("Confusion Matrix (Test Set)")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
