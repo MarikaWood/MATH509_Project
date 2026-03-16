@@ -21,6 +21,14 @@ The dataset contains MRI brain scan images categorized into dementia stages:
 
 Each MRI scan contains multiple slices per patient representing different cross-sections of the brain. To reduce redundancy and ensure consistent representation, specific slices (119–121) were selected for model training.
 
+## Example MRI Images
+
+The following figure shows a random sample of MRI slices from the dataset used for model training.
+
+<p align="center">
+  <img src="figures/sample_mri_images.png" width="800"/>
+</p>
+
 ## Data Preprocessing
 Several preprocessing steps were implemented to prepare the images for model training:
 - MRI slices **119-121** were selected for each patient
@@ -73,6 +81,32 @@ Model performance was evaluated using:
 ## Results
 The CNN model achieved a **test accuracy of 77.3%** when classifying MRI slices into three dementia categories using transfer learning with MobileNetV2.
 
+### Training Results
+The training and validation curves illustrate how the model learned over time. Training accuracy improved steadily while validation accuracy stabilized near the final performance level. The validation loss fluctuated during training, reflecting instability caused by class imbalance in the dataset.
+
+<p align="center">
+  <img src="figures/training_accuracy.png" width="500"/>
+</p>
+
+<p align="center">
+  <img src="figures/training_loss.png" width="500"/>
+</p>
+
+### Confusion Matrix
+The confusion matrix highlights that the model performed well on the **Non-Demented class**, but struggled with minority classes.
+
+<p align="center">
+  <img src="figures/confusion_matrix.png" width="400"/>
+</p>
+
+### Classification Report
+The classification report summarizes precision, recall,a nd F1-scres for each class. While the model performed strongly on the majority class, recall for the minority classes was significantly lower due to dataset imbalance.
+
+<p align="center">
+  <img src="figures/classification_report.png" width="400"/>
+</p>
+
+### Class-Specific Performance
 While the model performed well on the **Non-Demented class** (95% recall), performance on minority classes was lower due to **strong class imbalance** in the dataset:
 - **Non-Demented:** 95% recall (455/480 correctly classified)
 - **Very Mild Dementia:** 24% recall
