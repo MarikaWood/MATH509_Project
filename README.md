@@ -1,4 +1,5 @@
 # Alzheimer’s Disease MRI Classification Using Convolutional Neural Networks
+Python | TensorFlow/Keras | MobileNetV2 | Medical Image Classification
 
 ## Overview
 This project develops a deep learning model to classify Alzheimer's disease severity from MRI brain scans. The goal is to explore how convolutional neural networks (CNNs) can be used for medical image classification tasks.
@@ -6,25 +7,25 @@ This project develops a deep learning model to classify Alzheimer's disease seve
 The model is trained using MRI images from the OASIS dataset and uses transfer learning with MobileNetV2 to classify images into three dementia categories.
 
 ---
+
 ## Dataset
 Dataset: **OASIS MRI Dataset**
 
 Source: Kaggle
 https://www.kaggle.com/datasets/ninadaithal/imagesoasis
 
-The dataset contains MRI brain scan image categorized into dementia stages:
+The dataset contains MRI brain scan images categorized into dementia stages:
 - Non-Demented
 - Very Mild Dementia
 - Mild Dementia
 
-Each MRI scan contains multiple slices per patient. To reduce redundancy and ensure consistent representation, specific slices (119–121) were selected for model training.
+Each MRI scan contains multiple slices per patient representing different cross-sections of the brain. To reduce redundancy and ensure consistent representation, specific slices (119–121) were selected for model training.
 
 ## Data Preprocessing
 Several preprocessing steps were implemented to prepare the images for model training:
 - MRI slices **119-121** were selected for each patient
-- Randomly sampled images per patient to maintin dataset balance
+- Randomly sampled images per patient to maintain dataset balance
 - Resized images to **224 x 224 pixels**
-- Converted images to grayscale
 - Applied **image normalization**
 - Implemented **data augmentation** including:
   - Rotation
@@ -55,7 +56,45 @@ Adam
 ---
 
 ## Class Imbalance
-To improve model performanc for underrepresented classes, the following approaches were used:
+To improve model performance for underrepresented classes, the following approaches were used:
 - Class weighting during model training
 - Image augmentation to increase variability
 
+---
+
+## Model Evaluation
+Model performance was evaluated using:
+- Test set accuracy
+- Confusion matrix
+- Classification report (precision, recall, F1-score)
+
+---
+
+## Results
+The CNN model achieved a **test accuracy of 77.3%** when classifying MRI slices into three dementia categories using transfer learning with MobileNetV2.
+
+While the model performed well on the **Non-Demented class** (95% recall), performance on minority classes was lower due to **strong class imbalance** in the dataset:
+- **Non-Demented:** 95% recall (455/480 correctly classified)
+- **Very Mild Dementia:** 24% recall
+- **Mild Dementia:** 14% recall
+
+Despite using **class weighting and data augmentation**, the model still tended to predict the majority class. This highlights a common challenge in medical imaging tasks where limited examples exist for early disease stages. 
+
+Overall, the results demonstrate that transfer learning with MobileNetV2 can capture meaningful patterns from MRI data, but performance is strongly influenced by dataset size and class distribution.
+
+---
+
+## Tools and Libraries
+- Python
+- TensorFlow / Keras
+- NumPy
+- Matplotlib
+- Scikit-learn
+
+---
+
+## Future Improvements
+Possible extensions for this project include:
+- Experimenting with different CNN architectures
+- Increasing dataset size
+- Applying cross-validation
